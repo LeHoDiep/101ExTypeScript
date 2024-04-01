@@ -1,2 +1,2 @@
 # 101ExTypeScript
-mọi thứ kỳ lạ của ts
+tôi để mọi thứ kỳ lạ mà ts có
