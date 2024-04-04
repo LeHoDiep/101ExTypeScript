@@ -1,12 +1,52 @@
 # Awaited và ReturnType
 
+- RetyrnType\<Type> giúp ta lấy ra kiểu dữ liệu trả về của một hàm
+
+  - vị dụ hàm đó có rất nhiều overload
+
+  ```ts
+  //vd1:
+  //stringOrNum có rất nhiều overload
+  declare function stringOrNum(x: string): number;
+  declare function stringOrNum(x: number): string;
+  declare function stringOrNum(x: string | number): string | number;
+
+  type T1 = ReturnType<typeof stringOrNum>;
+  //   ^? type T1 = string | number
+  ```
+
+  - nhưng nếu
+
+  ```ts
+  //stringOrNum có rất nhiều overload
+  declare function stringOrNum(x: string): number;
+  declare function stringOrNum(x: string | number): string | number;
+  declare function stringOrNum(x: number): string;
+
+  type T1 = ReturnType<typeof stringOrNum>;
+  //   ^? type T1 = string
+  //vì inferring(suy luận) từ nhiều overload nó sẽ trả về
+  // overload cuối cùng
+  ```
+
+  - ví dụ nâng cao
+
+  ```ts
+  type T3 = ReturnType<<T extends U, U extends number[]>() => T>;
+
+  type T3 = number[];
+  ```
+
 - nếu ta có một hàm promise và chưa biết hắn sẽ trả về gì, nhưng ta cần định nghĩa nó để định nghĩa có biến sẽ nhận kết quả trả về của promise đó ta có thể dùng Awaited kết hợp với ReturnType và typeOf
 
   ```ts
+  //dùng typeof để lấy type của hàm fetchGuestInfo
+  //ReturnType để lấy giá trị trả ra
   type GuestInfoPromise = ReturnType<typeof fetchGuestInfo>;
   type CheckoutPromise = ReturnType<typeof processCheckout>;
 
   async function checkoutGuest(guestId: number): Promise<void> {
+    //định nghĩa rằng guestInfo sẽ nhận giá trị trả ra của fetchGuestInfo
     const guestInfo: Awaited<GuestInfoPromise> = await fetchGuestInfo(guestId);
     console.log("Guest information fetched:", guestInfo);
 
@@ -209,3 +249,201 @@ const userSubset: UserSubset = {
 # Omit<Type, Keys>
 
 - ngược lại với Pick, Omit<Type, Keys> giúp ta tạo ra một type mới từ type đã có, nhưng loại bỏ các thuộc tính được định nghĩa bởi Keys
+
+  ```ts
+  interface Todo {
+    title: string;
+    description: string;
+    completed: boolean;
+    createdAt: number;
+  }
+
+  type TodoInfo = Omit<Todo, "completed" | "createdAt">;
+
+  const todoInfo: TodoInfo = {
+    title: "Pick up kids",
+    description: "Kindergarten closes at 5pm",
+    completed: false, //bug
+    createdAt: 1615544252770, //bug
+  };
+  ```
+
+# Exclude<UnionType, ExcludedMembers>
+
+- khá giống Omit nhưng dùng cho union type
+  - Omit dùng để loại bỏ prop của object
+  - Exclude dùng để loại bỏ **union type**
+
+```ts
+//ta có một union type
+type basic = "a" | "b" | "c" | "d";
+
+type basic = "a" | "b" | "c" | "d";
+type basicC = Exclude<basic, "a" | "b">;
+//vậy thì type basicC  =  | "c" | "d"
+
+//vd2:
+type T2 = Exclude<string | number | (() => void), Function>;
+//T2 = string | number
+
+//vd3: loại bỏ bằng một mô tả cụ thể
+type Shape =
+  | { kind: "circle"; radius: number } //bị loại
+  | { kind: "square"; x: number }
+  | { kind: "triangle"; x: number; y: number };
+
+type T3 = Exclude<Shape, { kind: "circle" }>;
+```
+
+# Extract<Type, Union>
+
+- Extract<Type, Union> giúp ta tạo ra một type mới từ type đã có, nhưng chỉ chứa các thuộc tính được định nghĩa bởi Union
+- **cũng dùng với union type**
+- có thể sử dụng như filter lọc ra các phần tử giống nhau
+  hoặc thỏa mãn điều kiện
+
+```ts
+type T0 = Extract<"a" | "b" | "c", "a" | "b" | "f">;
+//ta có 2 union type, Extract sẽ lấy ra các phần tử giống nhau
+//T0 = "a" | "b"
+
+type Shape =
+  | { kind: "circle"; radius: number } //bị loại
+  | { kind: "square"; x: number }
+  | { kind: "triangle"; x: number; y: number };
+
+type T3 = Extract<Shape, { kind: "square" } | { y: number }>;
+
+/*
+type T3 = {
+    kind: "square";
+    x: number;
+} | {
+    kind: "triangle";
+    x: number;
+    y: number;
+}
+*/
+```
+
+# NonNullable<Type>
+
+- NonNullable<Type> sẽ loại bỏ các giá trị null từ type
+- nếu type là union type thì sẽ loại bỏ null từ union type
+
+```ts
+type T0 = NonNullable<string | number | undefined>;
+//  type T0 =  string | number
+type T1 = NonNullable<string[] | null | undefined>;
+//   type T1 = string[]
+
+let possiblyNull: string | null = "Hello";
+possiblyNull.length; //not good
+// Error: Object is possibly 'null'.
+```
+
+- nếu mình biết chắc giá trị trả ra k thể null thì nên dùng NonNullable
+
+```ts
+let definitelyNotNull: NonNullable<typeof possiblyNull> = possiblyNull;
+//possiblyNull: string = "Hello"
+possiblyNull.length; //good
+```
+
+# Parameters\<Type>
+
+- Parameters\<Type> giúp ta tạo ra một type mới từ type đã có, nhưng chỉ chứa các tham số của hàm
+  - ReturnType\<Type> giúp ta tạo ra một type mới từ type đã có, nhưng chỉ chứa giá trị trả về của hàm
+
+```ts
+type T0 = Parameters<() => string>;
+//   type T0 = []
+
+type T1 = Parameters<(s: string) => void>;
+//   type T1 = [s: string]
+
+type T2 = Parameters<<T>(arg: T) => T>;
+//   type T2 = [arg: unknown]
+// vì T là kiểu dữ liệu chưa biết
+
+declare function f1(arg: { a: number; b: string }): void;
+type T3 = Parameters<typeof f>;
+//   type T3 = [{ a: number; b: string }]
+
+//any thì xem paramater là 1 mảng các unknown
+type T4 = Parameters<any>;
+//type T4 = unknown[];
+
+type T5 = Parameters<never>;
+//   type T5 = never
+
+type T6 = Parameters<string>; // sai
+
+type T7 = Parameters<Function>; // sai
+```
+
+## Nâng cao với Parameters\<Type>
+
+(https://www.typescriptlang.org/docs/handbook/2/conditional-types)
+
+- Inferring Within Conditional Types
+
+# InstanceType\<Type>
+
+- instance là một object được tạo ra từ class
+
+- InstanceType\<Type> giúp ta tạo ra một type mới từ constructor của class, hoặc type của class
+
+- ứng dụng trong việc tạo ra type để định
+  nghĩa 1 instance được tạo ra từ class
+
+```ts
+//v1
+class C {
+  x = 0;
+  y = 0;
+}
+
+type T0 = InstanceType<typeof C>;
+
+//    ^?T0 = {
+//          x = 0;
+//          y = 0;
+//     }
+type T1 = InstanceType<any>;
+//    ^?T1 = any
+type T2 = InstanceType<never>;
+//    ^?T2 = never
+type T3 = InstanceType<string>;
+//    ^? bug
+type T4 = InstanceType<Function>;
+//    ^? bug
+
+//ứng dụng
+// ta có 1 class chuyên tạo ra các
+//instance(object) giúp kết nối mongoDB theo url
+class MongoDBConnection {
+  constructor(private url: string) {}
+
+  connect() {
+    //giả bộ có code
+  }
+
+  close() {
+    //giả bộ có code
+  }
+}
+
+//tạo type cho instance của class MongoDBConnection
+type MongoDBConnectionInstance = InstanceType<typeof MongoDBConnection>;
+
+//khi dùng sẽ là
+const connectionA: MongoDBConnectionInstance = new MongoDBConnection(
+  "mongodb://localhost:27017/mydb"
+);
+connection.connect();
+
+// connectionA đã đc định nghĩa
+```
+
+# ThisParameterType\<Type>
